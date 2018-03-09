@@ -33,6 +33,8 @@ package net.fortuna.ical4j.model
 
 import net.fortuna.ical4j.model.component.VEvent
 
+import java.time.ZoneId
+
 class VEventRecurrenceTest extends GroovyTestCase {
 
 	void testCalculateRecurrenceSet() {
@@ -74,5 +76,105 @@ class VEventRecurrenceTest extends GroovyTestCase {
 
 		println actual
 		assert actual == expected
+	}
+
+	/**
+	 * This is a regression test for issue #117.
+	 */
+	void testRecurringInstanceInDSTGap() {
+		// This event starts on the Sat before the switch from standard time to daylight saving time:
+		VEvent event = new ContentBuilder().vevent {
+			dtstart('20180324T023000')
+			dtend('20180324T024500')
+			rrule('FREQ=DAILY;INTERVAL=1;COUNT=4')
+		}
+
+		def actual = event.calculateRecurrenceSet(new Period('20180301T000000/20180331T000000'))
+
+		def expectedStr = ['20180324T023000/PT15M', '20180325T033000/PT15M', '20180326T023000/PT15M', '20180327T023000/PT15M']
+		def expected = new PeriodList(false)
+		expectedStr.each { expected.add(new Period(it)) }
+
+		def expectedInstants = expected.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+		def actualInstants = actual.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+
+		println "expected: " + expectedInstants
+		println "  actual: " + actualInstants
+		assert actualInstants == expectedInstants
+	}
+
+	/**
+	 * This is a regression test for issue #117.
+	 */
+	void testRecurringInstanceInDSTDoubledHour() {
+		// This event starts on the Sat before the switch from daylight saving time to standard time:
+		VEvent event = new ContentBuilder().vevent {
+			dtstart('20181026T023000')
+			dtend('20181026T024500')
+			rrule('FREQ=DAILY;INTERVAL=1;COUNT=4')
+		}
+
+		def actual = event.calculateRecurrenceSet(new Period('20181001T000000/20181031T000000'))
+
+		def expectedStr = ['20181026T023000/PT15M', '20181027T023000/PT15M', '20181028T023000/PT15M', '20181029T023000/PT15M']
+		def expected = new PeriodList(false)
+		expectedStr.each { expected.add(new Period(it)) }
+
+		def expectedInstants = expected.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+		def actualInstants = actual.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+
+		println "expected: " + expectedInstants
+		println "  actual: " + actualInstants
+		assert actualInstants == expectedInstants
+	}
+
+	/**
+	 * This is a regression test for issue #117.
+	 */
+	void testRecurringInstanceInDSTGapSkipped() {
+		// This event starts on the Sat before the switch from standard time to daylight saving time:
+		VEvent event = new ContentBuilder().vevent {
+			dtstart('20180324T023000')
+			dtend('20180324T024500')
+			rrule('FREQ=DAILY;INTERVAL=2;COUNT=2')
+		}
+
+		def actual = event.calculateRecurrenceSet(new Period('20180301T000000/20180331T000000'))
+
+		def expectedStr = ['20180324T023000/PT15M', '20180326T023000/PT15M']
+		def expected = new PeriodList(false)
+		expectedStr.each { expected.add(new Period(it)) }
+
+		def expectedInstants = expected.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+		def actualInstants = actual.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+
+		println "expected: " + expectedInstants
+		println "  actual: " + actualInstants
+		assert actualInstants == expectedInstants
+	}
+
+	/**
+	 * This is a regression test for issue #117.
+	 */
+	void testRecurringInstanceInDSTDoubledHourSkipped() {
+		// This event starts on the Sat before the switch from daylight saving time to standard time:
+		VEvent event = new ContentBuilder().vevent {
+			dtstart('20181026T023000')
+			dtend('20181026T024500')
+			rrule('FREQ=DAILY;INTERVAL=2;COUNT=2')
+		}
+
+		def actual = event.calculateRecurrenceSet(new Period('20181001T000000/20181031T000000'))
+
+		def expectedStr = ['20181026T023000/PT15M', '20181028T023000/PT15M']
+		def expected = new PeriodList(false)
+		expectedStr.each { expected.add(new Period(it)) }
+
+		def expectedInstants = expected.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+		def actualInstants = actual.collect { it.start.toInstant().atZone(ZoneId.systemDefault()).toString() }
+
+		println "expected: " + expectedInstants
+		println "  actual: " + actualInstants
+		assert actualInstants == expectedInstants
 	}
 }
